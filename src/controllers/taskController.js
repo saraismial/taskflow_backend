@@ -34,7 +34,7 @@ async function getTasks(req, res, next) {
             query = {};
         } else {
             query = {
-                $or: [{ assignee: req.user._id }, { creadtedBy: req.user._id }],
+                $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
             };
         }
 
@@ -64,7 +64,7 @@ async function getTaskById(req, res, next) {
         if (
             req.user.role !== 'admin' &&
             task.assignee?.toString() !== req.user._id.toString() &&
-            task.createdBy/toString() !== req.user._id.toString()
+            task.createdBy.toString() !== req.user._id.toString()
         ) {
             return res.status(403).json({ message: 'Forbidden' });
         }

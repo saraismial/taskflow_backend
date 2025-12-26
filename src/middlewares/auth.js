@@ -9,7 +9,7 @@ async function auth(req, res, next) {
             : null;
         
             if (!token) {
-                return res.status(401).json({ message: 'Authorizatoin token missing' });
+                return res.status(401).json({ message: 'Authorization token missing' });
             }
 
             const payload = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);

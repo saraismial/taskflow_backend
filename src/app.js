@@ -10,8 +10,10 @@ const app = express();
 
 app.use(cors({
     // Update origin when frontend is set
-    origin: 'httlp://localhost:3000',
+    origin: 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 app.use(cookieParser());
