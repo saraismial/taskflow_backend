@@ -4,10 +4,10 @@ const { generateAccessToken, generateRefreshToken } = require('./tokenUtils');
 
 async function register(req, res, next) {
     try {
-        const { email, password, role } = req.body;
+        const { name, email, password, role } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password required' });
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: 'Name, email, and password required' });
         }
 
         const existing = await User.findOne({ email });
@@ -16,6 +16,7 @@ async function register(req, res, next) {
         }
 
         const user = new User({
+            name,
             email,
             // Default user, can manually create admin later
             role: role === 'admin' ? 'admin' : 'user', 
@@ -33,6 +34,7 @@ async function register(req, res, next) {
         res.status(201).json({
             user: {
                 id: user._id,
+                name: user.name,
                 email: user.email,
                 role: user.role,
             },
@@ -68,6 +70,7 @@ async function login(req, res, next) {
         res.json({
             user: {
                 id: user._id,
+                name: user.name,
                 email: user.email,
                 role: user.role,
             },
