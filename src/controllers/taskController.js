@@ -78,7 +78,7 @@ async function getTaskById(req, res, next) {
 // PATCH /tasks/:id 
 async function updateTask(req, res, next) {
     try {
-        const updates = req.body;
+        const { createdBy, _id, ...updates } = req.body;
 
         let task = await Task.findById(req.params.id);
 
@@ -96,9 +96,11 @@ async function updateTask(req, res, next) {
         Object.assign(task, updates);
         await task.save();
 
-        task = await task 
-            .populate('assignee', 'email role')
-            .populate('createdBy', 'email role');
+        task = await task.populate([
+        { path: 'assignee', select: 'email role' },
+        { path: 'createdBy', select: 'email role' },
+        ]);
+
 
         res.json(task);
     } catch (err) {
