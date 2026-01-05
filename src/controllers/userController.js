@@ -1,76 +1,69 @@
 const User = require("../models/User");
+const AppError = require("../utils/AppError");
+const catchAsync = require("../utils/catchAsync");
 
 // PATCH /users/me
-async function updateUser(req, res, next) {
-    try {
-        const userId = req.user._id;
+const updateUser = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const { name, email } = req.body;
 
-        const { name, email } = req.body;
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
 
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ message: "User not found." });
+  if (typeof name === "string") user.name = name.trim();
+  if (typeof email === "string") user.email = email.trim().toLowerCase();
 
-        if (typeof name === "string") user.name = name.trim();
-        if (typeof email === "string") user.email = email.trim().toLowerCase();
+  await user.save();
 
-        await user.save();
-
-        res.json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-        });
-    } catch (err) {
-        if (err.code === 11000) {
-            const field = Object.keys(err.keyValue || {})[0] || "field";
-            return res.status(409).json({ message: `${field} already in use` });
-        }
-        next(err);
-    }
-}
+  res.json({
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  });
+});
 
 // PATCH /users/me/password
-async function changePassword(req, res, next) {
-    try {
-        const userId = req.user._id;
-        const { currentPassword, newPassword } = req.body;
+const changePassword = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const { currentPassword, newPassword } = req.body;
 
-        if (!currentPassword || !newPassword) {
-            return res.status(404).json({ message: "Current password and new password required." });
-        }
+  if (!currentPassword || !newPassword)
+    throw new AppError(
+      "Current password and new password required.",
+      400,
+      "MISSING_FIELDS"
+    );
 
-        const user = await User.findById(userId);
-        if (!user) return res.status(400).json({ message: "User nnot found." });
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("User not found.", 404, "USER_NOT_FOUND");
 
-        const ok = await user.validatePassword(currentPassword);
-        if (!ok) return res.status(400).json({ message: "Current password is incorrect." });
+  const ok = await user.validatePassword(currentPassword);
+  if (!ok)
+    throw new AppError(
+      "Current password is incorrect.",
+      400,
+      "INVAlID_CREDENTIALS"
+    );
 
-        await user.setPassword(newPassword);
-        await user.save();
+  await user.setPassword(newPassword);
+  await user.save();
 
-        res.json({ message: "Password updated." });
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json({ message: "Password updated." });
+});
 
 // DELETE /users/me
-async function deleteUser(req, res, next) {
-    try {
-        const userId = req.user._id;
+const deleteUser = catchAsync(async (req, res) => {
+  const userId = req.user._id;
 
-        const user = await User.findById(userId);
-        if(!user) return res.status(404).json({ message: "User not found" });
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("User not found.", 404, "USER_NOT_FOUND");
 
-        await User.findByIdAndDelete(userId);
+  await User.findByIdAndDelete(userId);
 
-        res.json({ message: "Account deleted" })
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json({ message: "Account deleted" });
+});
 
-module.exports = { updateUser, changePassword, deleteUser }
+module.exports = { updateUser, changePassword, deleteUser };

@@ -7,6 +7,7 @@ const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
 const errorHandler = require('./middlewares/errorHandler');
+const AppError = require('./utils/AppError');
 
 const app = express();
 
@@ -27,7 +28,7 @@ app.use('/api/users', userRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res, next) => {
-    res.status(404).json({ message: 'Route not found'});
+    next(new AppError("Route not found", 404, "ROUTE_NOT_FOUND"));
 });
 
 app.use(errorHandler);

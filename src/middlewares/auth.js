@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const AppError = require("../utils/AppError");
 
 async function auth(req, res, next) {
     try {
@@ -9,14 +10,14 @@ async function auth(req, res, next) {
             : null;
         
             if (!token) {
-                return res.status(401).json({ message: 'Authorization token missing' });
+                return next(new AppError("Authorization token missing", 401, "AUTH_MISSING_TOKEN"));
             }
 
             const payload = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
             const user = await User.findById(payload.sub).select('-passwordHash');
             if (!user) {
-                return res.status(401).json({ message: 'User not found' });
+                return next(new AppError("User not found", 401, "AUTH_USER_NOT_FOUND"));
             }
 
             // Attach user to request
@@ -24,8 +25,7 @@ async function auth(req, res, next) {
 
             next();
     } catch (err) {
-        console.error('Authorization error: ', err.message);
-        return res.status(401).json({ message: 'Invalid or expired token' });
+        next(err);
     }
 }
 

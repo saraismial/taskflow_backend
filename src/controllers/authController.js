@@ -1,125 +1,120 @@
-const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken } = require('./tokenUtils');
+const User = require("../models/User");
+const { generateAccessToken, generateRefreshToken } = require("./tokenUtils");
+const AppError = require("../utils/AppError");
+const catchAsync = require("../utils/catchAsync");
 
+const register = catchAsync(async (req, res) => {
+  const { name, email, password, role } = req.body;
 
-async function register(req, res, next) {
-    try {
-        const { name, email, password, role } = req.body;
+  if (!name || !email || !password) {
+    throw new AppError(
+      "Name, email, and password required",
+      400,
+      "MISSING_FIELDS"
+    );
+  }
 
-        if (!name || !email || !password) {
-            return res.status(400).json({ message: 'Name, email, and password required' });
-        }
+  const existing = await User.findOne({ email });
+  if (existing) {
+    throw new AppError(
+      "User with this email already exists",
+      409,
+      "EMAIL_IN_USE"
+    );
+  }
 
-        const existing = await User.findOne({ email });
-        if (existing) {
-            return res.status(409).json({ message: 'User with this email already exists' });
-        }
+  const user = new User({
+    name,
+    email,
+    // Default user, can manually create admin later
+    role: role === "admin" ? "admin" : "user",
+  });
 
-        const user = new User({
-            name,
-            email,
-            // Default user, can manually create admin later
-            role: role === 'admin' ? 'admin' : 'user', 
-        });
+  await user.setPassword(password);
+  await user.save();
 
-        await user.setPassword(password);
-        await user.save();
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
+  user.refreshToken = refreshToken;
+  await user.save();
 
-        user.refreshToken = refreshToken;
-        await user.save();
+  res.status(201).json({
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    tokens: {
+      accessToken,
+      refreshToken,
+    },
+  });
+});
 
-        res.status(201).json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-            tokens: {
-                accessToken, 
-                refreshToken,
-            },
-        });
-    } catch (err) {
-        next(err);
-    }
-}
+const login = catchAsync(async (req, res) => {
+  const { email, password } = req.body;
 
-async function login(req, res, next) {
-    try {
-        const { email, password } = req.body;
+  if (!email || !password) {
+    throw new AppError("Email and password required", 400, "MISSING_FIELDS");
+  }
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password required' });
-        }
+  const user = await User.findOne({ email });
+  if (!user || !(await user.validatePassword(password))) {
+    throw new AppError("Invalid credentials", 400, "INVALID_CREDENTIALS");
+  }
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-        const user = await User.findOne({ email });
-        if (!user || !(await user.validatePassword(password))) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
+  user.refreshToken = refreshToken;
+  await user.save();
 
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
+  res.json({
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    tokens: {
+      accessToken,
+      refreshToken,
+    },
+  });
+});
 
-        user.refreshToken = refreshToken;
-        await user.save();
+const refresh = catchAsync(async (req, res) => {
+  const jwt = require("jsonwebtoken");
+  const { refreshToken } = req.body;
 
-        res.json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-            tokens: {
-                accessToken,
-                refreshToken,
-            },
-        });
-    } catch (err) {
-        next(err);
-    }
-}
+  if (!refreshToken) {
+    throw new AppError("Refresh token required", 400, "MISSING_REFRESH_TOKEN");
+  }
 
-async function refresh(req, res, next) {
-    const jwt = require('jsonwebtoken');
+  const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+  const user = await User.findById(payload.sub);
 
-    try {
-        const { refreshToken } = req.body;
+  if (!user || user.refreshToken !== refreshToken) {
+    throw new AppError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+  }
 
-        if (!refreshToken) {
-            return res.status(400).json({ message: 'Refresh token required' });
-        }
+  const accessToken = generateAccessToken(user);
+  const newRefreshToken = generateRefreshToken(user);
 
-        const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-        const user = await User.findById(payload.sub);
+  user.refreshToken = newRefreshToken;
+  await user.save();
 
-        if (!user || user.refreshToken !== refreshToken) {
-            return res.status(401).json({ message: 'Invalid refresh token' });
-        }
-
-        const accessToken = generateAccessToken(user);
-        const newRefreshToken = generateRefreshToken(user);
-
-        user.refreshToken = newRefreshToken;
-        await user.save();
-
-        res.json({
-            tokens: {
-                accessToken,
-                refreshToken: newRefreshToken,
-            },
-        });
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json({
+    tokens: {
+      accessToken,
+      refreshToken: newRefreshToken,
+    },
+  });
+});
 
 module.exports = {
-    register, 
-    login, 
-    refresh
-}
+  register,
+  login,
+  refresh,
+};

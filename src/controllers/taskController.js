@@ -1,141 +1,114 @@
-const Task = require('../models/Task');
+const Task = require("../models/Task");
+const AppError = require("../utils/AppError");
+const catchAsync = require("../utils/catchAsync");
 
 // POST /tasks
-async function createTask(req, res, next) {
-    try {
-        const { title, description, status, priority, dueDate, assignee } = req.body;
+const createTask = catchAsync(async (req, res) => {
+  const { title, description, status, priority, dueDate, assignee } = req.body;
 
-        if (!title) {
-            return res.status(400).json({ message: 'Title is required' });
-        }
+  if (!title) throw new AppError("Title is required", 400, "MISSING_TITLE");
 
-        const task = await Task.create({
-            title, 
-            description, 
-            status, 
-            priority, 
-            dueDate, 
-            assignee: assignee || null,
-            createdBy: req.user._id,
-        });
+  const task = await Task.create({
+    title,
+    description,
+    status,
+    priority,
+    dueDate,
+    assignee: assignee || null,
+    createdBy: req.user._id,
+  });
 
-        res.status(201).json(task);
-    } catch (err) {
-        next(err);
-    }
-}
+  res.status(201).json(task);
+});
 
 // GET /tasks
-async function getTasks(req, res, next) {
-    try {
-        let query;
+const getTasks = catchAsync(async (req, res) => {
+  let query;
 
-        if (req.user.role === 'admin') {
-            query = {};
-        } else {
-            query = {
-                $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
-            };
-        }
+  if (req.user.role === "admin") {
+    query = {};
+  } else {
+    query = {
+      $or: [{ assignee: req.user._id }, { createdBy: req.user._id }],
+    };
+  }
 
-        const tasks = await Task.find(query)
-            .populate('assignee', 'email role')
-            .populate('createdBy', 'email role')
-            .sort({ createdAt: -1 });
+  const tasks = await Task.find(query)
+    .populate("assignee", "email role")
+    .populate("createdBy", "email role")
+    .sort({ createdAt: -1 });
 
-        res.json(tasks);
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json(tasks);
+});
 
 // GET /tasks/:id
-async function getTaskById(req, res, next) {
-    try {
-        const task = await Task.findById(req.params.id)
-            .populate('assignee', 'email role')
-            .populate('createdBy', 'email role');
-        
-        if (!task) {
-            return res.status(404).json({ message: 'Task not found' })
-        }
+const getTaskById = catchAsync(async (req, res) => {
+  const task = await Task.findById(req.params.id)
+    .populate("assignee", "email role")
+    .populate("createdBy", "email role");
 
-        // If not admin, make sure they are creator or assignee
-        if (
-            req.user.role !== 'admin' &&
-            task.assignee?.toString() !== req.user._id.toString() &&
-            task.createdBy.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({ message: 'Forbidden' });
-        }
+  if (!task) throw new AppError("Task not found", 404, "TASK_NOT_FOUND");
 
-        res.json(task);
-    } catch (err) {
-        next(err);
-    }
-}
+  // If not admin, make sure they are creator or assignee
+  if (
+    req.user.role !== "admin" &&
+    task.assignee?.toString() !== req.user._id.toString() &&
+    task.createdBy.toString() !== req.user._id.toString()
+  ) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
 
-// PATCH /tasks/:id 
-async function updateTask(req, res, next) {
-    try {
-        const { createdBy, _id, ...updates } = req.body;
+  res.json(task);
+});
 
-        let task = await Task.findById(req.params.id);
+// PATCH /tasks/:id
+const updateTask = catchAsync(async (req, res) => {
+  const { createdBy, _id, ...updates } = req.body;
 
-        if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
+  let task = await Task.findById(req.params.id);
 
-        if (
-            req.user.role !== 'admin' && 
-            task.createdBy.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({ message: 'Forbidden' });
-        }
+  if (!task) throw new AppError("Task not found", 404, "TASK_NOT_FOUND");
 
-        Object.assign(task, updates);
-        await task.save();
+  if (
+    req.user.role !== "admin" &&
+    task.createdBy.toString() !== req.user._id.toString()
+  ) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
 
-        task = await task.populate([
-        { path: 'assignee', select: 'email role' },
-        { path: 'createdBy', select: 'email role' },
-        ]);
+  Object.assign(task, updates);
+  await task.save();
 
+  task = await task.populate([
+    { path: "assignee", select: "email role" },
+    { path: "createdBy", select: "email role" },
+  ]);
 
-        res.json(task);
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json(task);
+});
 
 // DELETE /tasks/:id
-async function deleteTask(req, res, next) {
-    try {
-        const task = await Task.findById(req.params.id);
+const deleteTask = catchAsync(async (req, res) => {
+  const task = await Task.findById(req.params.id);
 
-        if(!task) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
+  if (!task) throw new AppError("Task not found", 404, "TASK_NOT_FOUND");
 
-        if (
-            req.user.role !== 'admin' &&
-            task.createdBy.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({ message: 'Forbidden' });
-        }
+  if (
+    req.user.role !== "admin" &&
+    task.createdBy.toString() !== req.user._id.toString()
+  ) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
 
-        await task.deleteOne();
+  await task.deleteOne();
 
-        res.json({ message: 'Task deleted' });
-    } catch (err) {
-        next(err);
-    }
-}
+  res.json({ message: "Task deleted" });
+});
 
 module.exports = {
-    createTask, 
-    getTasks, 
-    getTaskById, 
-    updateTask, 
-    deleteTask
-}
+  createTask,
+  getTasks,
+  getTaskById,
+  updateTask,
+  deleteTask,
+};
