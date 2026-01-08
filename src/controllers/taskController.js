@@ -34,8 +34,8 @@ const getTasks = catchAsync(async (req, res) => {
   }
 
   const tasks = await Task.find(query)
-    .populate("assignee", "email role")
-    .populate("createdBy", "email role")
+    .populate("assignee", "name email role")
+    .populate("createdBy", "name email role")
     .sort({ createdAt: -1 });
 
   res.json(tasks);
