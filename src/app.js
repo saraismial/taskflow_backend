@@ -12,12 +12,16 @@ const AppError = require('./utils/AppError');
 const app = express();
 
 app.use(cors({
-    // Update origin when frontend is set
-    origin: 'http://localhost:5173',
+    // Update origin
+    origin: [
+        'https://taskflowreact.netlify.app',
+        'http://localhost:5173',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 
