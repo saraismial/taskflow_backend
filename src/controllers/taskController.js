@@ -18,7 +18,12 @@ const createTask = catchAsync(async (req, res) => {
     createdBy: req.user._id,
   });
 
-  res.status(201).json(task);
+  const populatedTask = await task.populate(
+    "createdBy",
+    "name email role"
+  );
+
+  res.status(201).json(populatedTask);
 });
 
 // GET /tasks
