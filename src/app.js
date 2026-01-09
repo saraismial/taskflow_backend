@@ -14,13 +14,21 @@ const app = express();
 app.use(cors({
     // Update origin
     origin: [
+
         'https://taskflowreact.netlify.app',
         'http://localhost:5173',
     ],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', "OPTIONS"],
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'ngrok-skip-browser-warning',
+    ],
+
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+app.options(/.*/, cors());
 
 app.use(express.json());
 app.use(cookieParser());
